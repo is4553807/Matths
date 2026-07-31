@@ -444,7 +444,7 @@ app.get("/private-mock-exams", (req, res) => {
       durationMinutes: 100,
       currentExam: {
         id: "exam-a",
-        title: "8월 첫째 주 Matths 사설 모의고사",
+        title: "8월 첫째 주 Matths 주간 공식 모의고사",
         isTest: false,
         formCode: "A",
         questionCount: 30,
