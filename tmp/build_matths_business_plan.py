@@ -14,25 +14,24 @@ from docx.shared import Inches, Pt, RGBColor
 
 
 ROOT = Path("/Users/sangyoonlee/Desktop/SangYoon Lee/SINGAPORE 2025-/Personal Projects/Matths")
-OUT = ROOT / "output" / "docs" / "Matths_사업소개서_및_공동사업_운영계획서_v1.0.docx"
-ICON = ROOT / "public" / "images" / "favicon-64.png"
+OUT = ROOT / "output" / "docs" / "Matths_사업소개서_및_공동사업_운영계획서_v1.1.docx"
 
-# AppleGothic is a standalone macOS TTF (unlike Apple SD Gothic Neo's TTC) and
-# is the known-good Korean font used by the repository's existing PDF builds.
-FONT_LATIN = "AppleGothic"
-FONT_KO = "AppleGothic"
-BLUE = "2E74B5"
-DARK_BLUE = "1F4D78"
-INK = "0B2545"
-TEXT = "20252B"
-MUTED = "5B6573"
-LIGHT = "F2F4F7"
-PALE_BLUE = "E8EEF5"
-CALLOUT = "F4F6F9"
-BORDER = "CBD2DA"
+# User-requested typography: Malgun Gothic across Korean and Latin runs.
+FONT_LATIN = "Malgun Gothic"
+FONT_KO = "Malgun Gothic"
+# Monochrome formal-document override of standard_business_brief.
+BLUE = "111111"
+DARK_BLUE = "111111"
+INK = "111111"
+TEXT = "1A1A1A"
+MUTED = "5F5F5F"
+LIGHT = "F2F2F2"
+PALE_BLUE = "E8E8E8"
+CALLOUT = "F7F7F7"
+BORDER = "B7B7B7"
 WHITE = "FFFFFF"
-RISK = "9B1C1C"
-GOLD = "7A5A00"
+RISK = "333333"
+GOLD = "555555"
 
 PAGE_DXA = 9360
 TABLE_INDENT = 120
@@ -158,6 +157,12 @@ def repeat_table_header(row):
     tr_pr.append(tbl_header)
 
 
+def prevent_row_split(row):
+    tr_pr = row._tr.get_or_add_trPr()
+    if tr_pr.find(qn("w:cantSplit")) is None:
+        tr_pr.append(OxmlElement("w:cantSplit"))
+
+
 def set_paragraph_border(paragraph, color=BORDER, size=6, side="bottom"):
     p_pr = paragraph._p.get_or_add_pPr()
     p_bdr = p_pr.find(qn("w:pBdr"))
@@ -265,7 +270,7 @@ def configure_styles(doc):
 
     for name, size, color, italic in (
         ("Table Source", 8.5, MUTED, False),
-        ("Source List", 8.8, TEXT, False),
+        ("Source List", 8.1, TEXT, False),
         ("Small Note", 9.0, MUTED, False),
         ("Kicker", 9.0, BLUE, False),
     ):
@@ -285,6 +290,9 @@ def configure_styles(doc):
         style.paragraph_format.line_spacing = 1.10
     styles["Source List"].paragraph_format.left_indent = Inches(0.32)
     styles["Source List"].paragraph_format.first_line_indent = Inches(-0.32)
+    styles["Source List"].paragraph_format.space_before = Pt(1)
+    styles["Source List"].paragraph_format.space_after = Pt(2)
+    styles["Source List"].paragraph_format.line_spacing = 1.02
     styles["Kicker"].font.bold = True
     styles["Kicker"].font.all_caps = True
 
@@ -380,20 +388,36 @@ def add_bullets(doc, items: Iterable[str]):
         p = doc.add_paragraph()
         p.paragraph_format.left_indent = Inches(0.5)
         p.paragraph_format.first_line_indent = Inches(-0.25)
-        p.paragraph_format.space_after = Pt(8)
-        p.paragraph_format.line_spacing = 1.167
+        p.paragraph_format.space_after = Pt(5)
+        p.paragraph_format.line_spacing = 1.10
         apply_num(p, 910)
         set_font(p.add_run(item))
 
 
 def add_numbered(doc, items: Iterable[str]):
+    # Each list gets a fresh concrete numbering instance so it restarts at 1.
+    num_id = getattr(doc, "_matths_next_num_id", 912)
+    numbering = doc.part.numbering_part.element
+    num_el = OxmlElement("w:num")
+    num_el.set(qn("w:numId"), str(num_id))
+    abstract_id_el = OxmlElement("w:abstractNumId")
+    abstract_id_el.set(qn("w:val"), "911")
+    num_el.append(abstract_id_el)
+    lvl_override = OxmlElement("w:lvlOverride")
+    lvl_override.set(qn("w:ilvl"), "0")
+    start_override = OxmlElement("w:startOverride")
+    start_override.set(qn("w:val"), "1")
+    lvl_override.append(start_override)
+    num_el.append(lvl_override)
+    numbering.append(num_el)
+    doc._matths_next_num_id = num_id + 1
     for item in items:
         p = doc.add_paragraph()
         p.paragraph_format.left_indent = Inches(0.5)
         p.paragraph_format.first_line_indent = Inches(-0.25)
-        p.paragraph_format.space_after = Pt(8)
-        p.paragraph_format.line_spacing = 1.167
-        apply_num(p, 911)
+        p.paragraph_format.space_after = Pt(5)
+        p.paragraph_format.line_spacing = 1.10
+        apply_num(p, num_id)
         set_font(p.add_run(item))
 
 
@@ -404,6 +428,7 @@ def add_callout(doc, label, text, fill=CALLOUT, border=BLUE):
     p.paragraph_format.space_before = Pt(6)
     p.paragraph_format.space_after = Pt(10)
     p.paragraph_format.line_spacing = 1.10
+    p.paragraph_format.keep_together = True
     set_paragraph_shading(p, fill)
     set_paragraph_border(p, border, size=12, side="left")
     set_font(p.add_run(label + "  "), size=10, bold=True, color=border)
@@ -437,6 +462,8 @@ def add_table(doc, headers: Sequence[str], rows: Sequence[Sequence[str]], widths
             set_font(p.add_run(str(value)), size=font_size, color=TEXT)
     # New rows need geometry too.
     set_table_geometry(table, widths)
+    for row in table.rows:
+        prevent_row_split(row)
     return table
 
 
@@ -448,20 +475,24 @@ def add_table_source(doc, text):
 
 def add_section_heading(doc, number, title, subtitle=None):
     p = doc.add_paragraph(style="Kicker")
-    set_font(p.add_run(f"SECTION {number}"), size=9, bold=True, color=BLUE)
+    p.paragraph_format.keep_with_next = True
+    label = "부록" if number == "A" else f"제{int(number)}장"
+    set_font(p.add_run(label), size=9, bold=True, color=MUTED)
     h = doc.add_paragraph(style="Heading 1")
-    set_font(h.add_run(title), size=16, bold=True, color=BLUE)
+    set_font(h.add_run(title), size=16, bold=True, color=INK)
     if subtitle:
         p2 = doc.add_paragraph(style="Small Note")
         p2.paragraph_format.space_after = Pt(10)
+        p2.paragraph_format.keep_with_next = True
         set_font(p2.add_run(subtitle), size=9, color=MUTED)
 
 
 def new_page(doc):
-    # Major sections flow naturally so a two-line continuation does not leave
-    # the remainder of a page blank. Headings themselves use keep-with-next.
+    # Every major section starts on a fresh page. This removes ambiguous
+    # cross-page section boundaries in administrative review copies.
     p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(2)
+    p.paragraph_format.page_break_before = True
+    p.paragraph_format.space_before = Pt(0)
     p.paragraph_format.space_after = Pt(0)
     p.paragraph_format.line_spacing = Pt(1)
     set_font(p.add_run(""), size=1, color=WHITE)
@@ -479,11 +510,11 @@ def hard_new_page(doc):
 
 def add_source(doc, code, title, org, date, url, note=""):
     p = doc.add_paragraph(style="Source List")
-    set_font(p.add_run(f"[{code}] {org}, {title}"), size=8.8, bold=True, color=TEXT)
-    set_font(p.add_run(f" ({date}). "), size=8.8, color=MUTED)
+    set_font(p.add_run(f"[{code}] {org}, {title}"), size=8.1, bold=True, color=TEXT)
+    set_font(p.add_run(f" ({date}). "), size=8.1, color=MUTED)
     add_hyperlink(p, url, url)
     if note:
-        set_font(p.add_run(f" — {note}"), size=8.8, color=MUTED)
+        set_font(p.add_run(f" — {note}"), size=8.1, color=MUTED)
 
 
 def setup_document():
@@ -498,6 +529,7 @@ def setup_document():
     section.header_distance = Inches(0.492)
     section.footer_distance = Inches(0.492)
     section.different_first_page_header_footer = False
+    doc.settings.odd_and_even_pages_header_footer = False
 
     configure_styles(doc)
     configure_numbering(doc)
@@ -507,12 +539,12 @@ def setup_document():
     hp.paragraph_format.space_after = Pt(4)
     hp.paragraph_format.tab_stops.add_tab_stop(Inches(6.5))
     set_font(hp.add_run("MATTHS  |  사업소개서"), size=8.5, bold=True, color=MUTED)
-    set_font(hp.add_run("\t내부검토용 · 대외배포금지"), size=8.5, bold=True, color=RISK)
+    set_font(hp.add_run("\t내부검토용 · 대외배포금지"), size=8.5, bold=True, color=INK)
 
     footer = section.footer
     fp = footer.paragraphs[0]
     fp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    set_font(fp.add_run("Matths  |  v1.0  |  "), size=8.5, color=MUTED)
+    set_font(fp.add_run("Matths  |  v1.1  |  "), size=8.5, color=MUTED)
     add_page_field(fp)
 
     doc.core_properties.title = "Matths 사업소개서 및 공동사업 운영계획서"
@@ -526,23 +558,22 @@ def setup_document():
 def build():
     doc = setup_document()
 
-    # COVER — proposal_centerpiece using the standard_business_brief preset.
+    # COVER — monochrome proposal_centerpiece using standard_business_brief.
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_before = Pt(22)
-    p.paragraph_format.space_after = Pt(12)
-    if ICON.exists():
-        p.add_run().add_picture(str(ICON), width=Inches(0.48))
+    p.paragraph_format.space_before = Pt(38)
+    p.paragraph_format.space_after = Pt(10)
+    set_font(p.add_run("MATTHS"), size=12, bold=True, color=INK)
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(4)
-    set_font(p.add_run("MATTHS"), size=12, bold=True, color=BLUE)
+    set_font(p.add_run("공동사업자 등록·협의용"), size=9, bold=True, color=MUTED)
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(5)
-    set_font(p.add_run("사업소개서 및 공동사업 운영계획서"), size=25, bold=True, color=INK)
+    set_font(p.add_run("사업소개서 및 공동사업 운영계획서"), size=24, bold=True, color=INK)
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -553,7 +584,7 @@ def build():
         ("문서 목적", "공동사업자 등록·협의 및 사업성 검토"),
         ("사업 형태", "개인 공동사업(예정)"),
         ("작성 기준일", "2026년 8월 2일"),
-        ("문서 버전", "v1.0"),
+        ("문서 버전", "v1.1"),
     ]
     table = add_table(doc, ["구분", "내용"], cover_rows, [2200, 7160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], header_fill=PALE_BLUE, font_size=9.6)
     for c in table.rows[0].cells:
@@ -564,33 +595,34 @@ def build():
         doc,
         "문서 등급",
         "본 문서는 공동사업자 제출 및 내부 의사결정을 위한 비공개 자료이다. 이용자 홍보물, 투자권유 자료 또는 세무·법률 의견서로 사용하지 않는다.",
-        fill="FDECEC",
-        border=RISK,
+        fill=CALLOUT,
+        border=INK,
     )
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(14)
-    set_font(p.add_run("Prepared for Joint Business Registration & Internal Review"), size=9, italic=True, color=MUTED)
+    set_font(p.add_run("공동사업자 등록 및 내부 사업성 검토를 위한 공식 문서"), size=9, color=MUTED)
 
     hard_new_page(doc)
     add_section_heading(doc, "00", "요약", "공동사업자 검토를 위한 핵심 사업성·수익성·세무 판단 요약")
     add_callout(
         doc,
         "핵심 판단",
-        "Matths는 월 79.3만 원 수준의 사교육 참여 고등학생 지출 환경에서 29,000원의 저가 디지털 학습 패키지를 제공하고, 시각화 학습과 성취형 페이백·랭킹을 결합해 학습 지속성과 재구매를 유도하는 사업이다.",
+        "Matths는 2026년 운영 기준 개편 수능에 대응하는 2022 개정 고등학교 수학 교육과정 13개 과목을 제공하는 완성형 플랫폼이다. 실제 이용자는 학생이지만 결제와 선택은 학부모·보호자·제3자가 담당할 수 있으므로, 학생의 학습경험과 구매자의 신뢰·성과확인을 동시에 설계하는 비대칭 시장 구조를 전제로 한다.",
     )
 
     snapshot_rows = [
         ("사업 영역", "온라인 고등수학 교육·학습평가 플랫폼"),
-        ("핵심 고객", "2022 개정 교육과정 고등학생 및 N수생"),
-        ("핵심 제품", "시각화 개념학습, 문제 적용·오답 복습, 주간 평가, GOAT Arena"),
+        ("이용자·구매자", "실제 이용자: 학생 / 결제·의사결정자: 학부모·보호자·제3자"),
+        ("교육과정 범위", "공통·일반선택·진로선택·융합선택을 포함한 고등학교 수학 13개 과목"),
+        ("핵심 제품", "시각화 학습, 문제·오답 복습, 평가, 진도·성과관리, GOAT Arena"),
         ("기준 가격", "29일 학습 패키지 29,000원"),
-        ("수익 구조", "유료 학습 패키지 반복 결제 + 조건부 페이백 + 경쟁형 리텐션"),
+        ("수익 구조", "학부모·보호자·제3자의 학습권 결제 + 학생 이용 + 조건부 페이백·재구독"),
         ("기준 손익", "최초 결제자 1,000명 기준 연 결제 1,940건, 고객 결제총액 약 5,626만 원"),
-        ("문서상 결론", "시장 가격 대비 진입 부담이 낮고, 페이백 지급률이 제한적인 대신 운영자 측 공헌이익이 높은 구조"),
+        ("문서상 결론", "구매자에게는 가격·성과 투명성, 학생에게는 학습효과·동기·보상 경험을 제공하는 다중 고객 모델"),
     ]
-    add_table(doc, ["항목", "요약"], snapshot_rows, [2200, 7160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.4)
+    add_table(doc, ["항목", "요약"], snapshot_rows, [2200, 7160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.0)
 
     doc.add_paragraph(style="Heading 2").add_run("의사결정 전제")
     add_bullets(doc, [
@@ -598,13 +630,12 @@ def build():
         "연매출은 세액감면으로 증가하지 않는다. 세액감면은 세후 유보금·현금흐름을 증가시킨다.",
         "29,000원이 부가가치세 포함 소비자가격인지, 교육용역 면세가 가능한지가 회계상 매출과 이익을 크게 바꾼다.",
         "청년창업 세액감면은 청년 여부만으로 적용되지 않으며, 실제 주업종·창업일·사업장 위치·공동사업 손익분배비율을 함께 충족해야 한다.",
-        "공동사업 지분·역할·의사결정·지식재산·탈퇴·정산 기준은 본 소개서와 별도의 동업계약서로 확정해야 한다.",
     ])
 
     new_page(doc)
     add_section_heading(doc, "01", "사업 개요", "공식 사업계획서의 문제인식·실현가능성·성장전략·팀 구성 체계를 반영 [S4]")
     doc.add_paragraph(style="Heading 2").add_run("1.1 사업 정의")
-    add_para(doc, "Matths는 수학 공식을 정답으로 제시하는 데 그치지 않고, 도형·그래프·식이 변하는 과정을 장면 단위로 보여주는 고등수학 학습 플랫폼이다. 이용자는 개념의 생성 원리를 시각적으로 이해한 뒤 문제에 적용하고, 오답이 발생하면 막힌 단계로 돌아가 재학습한다. 서비스의 주된 급부는 교육 콘텐츠·문제 풀이·학습 기록·평가·피드백이며, GOAT Arena는 학습 성과를 경쟁과 랭킹으로 확장하는 부가 기능이다. [I1]")
+    add_para(doc, "Matths는 수학 공식을 정답으로 제시하는 데 그치지 않고, 도형·그래프·식이 변하는 과정을 장면 단위로 보여주는 고등수학 학습 플랫폼이다. 2026년 운영 기준으로 2022 개정 교육과정의 공통수학1·2부터 일반선택·진로선택·융합선택까지 총 13개 과목을 제공하며, 개편 수능과 학교별 과목 편성에 대응한다. 학생은 개념의 생성 원리를 시각적으로 이해한 뒤 문제에 적용하고, 오답이 발생하면 막힌 단계로 돌아가 재학습한다. 서비스의 주된 급부는 교육 콘텐츠·문제 풀이·학습 기록·평가·피드백이며, GOAT Arena는 학습 성과를 경쟁과 랭킹으로 확장하는 부가 기능이다. [I1][I2][S12]")
 
     doc.add_paragraph(style="Heading 2").add_run("1.2 해결하려는 문제")
     problem_rows = [
@@ -617,14 +648,13 @@ def build():
 
     doc.add_paragraph(style="Heading 2").add_run("1.3 사업 목표")
     add_numbered(doc, [
-        "2022 개정 교육과정의 고등학교 공통수학을 시작점으로 시각화 학습·문제 적용·오답 복습의 완결된 학습 흐름을 제공한다.",
-        "유료 학습 패키지와 주간 평가를 결합해 단순 콘텐츠 판매가 아닌 반복 이용형 학습 운영 모델을 확립한다.",
+        "2022 개정 고등학교 수학 교육과정 13개 과목 전체에 시각화 학습·문제 적용·오답 복습·평가의 완결된 흐름을 제공한다.",
+        "유료 학습 패키지와 주간 평가를 결합해 반복 이용형 학습 운영 모델을 확립하고, 상용 운영 데이터로 수익 가정을 정기 보정한다.",
         "페이백과 Division 경쟁을 교육 성취 보상으로 운영하되, 결제·학습권·랭킹·환급 원장을 분리하여 공정성과 재현성을 확보한다.",
-        "공동사업자 간 제품·교육·기술·운영 책임을 문서화하고, 유료 베타 데이터를 통해 수익 가정을 단계적으로 보정한다.",
     ])
 
     new_page(doc)
-    add_section_heading(doc, "02", "시장 배경 및 고객", "2025년 국가통계에 기반한 고등학생 사교육 지출 환경")
+    add_section_heading(doc, "02", "시장 배경 및 비대칭 고객 구조", "결제자와 실제 이용자가 분리되는 교육시장의 특성을 반영한 다중 고객 전략")
     doc.add_paragraph(style="Heading 2").add_run("2.1 2025년 사교육 시장")
     add_para(doc, "교육부·국가데이터처의 2025년 초중고 사교육비 조사에 따르면, 고등학교 사교육비 총액은 약 7.8조 원, 고등학생 사교육 참여율은 63.0%이다. 사교육 참여 고등학생 1인당 월평균 지출은 79만 3천 원이며, 고1은 80만 6천 원으로 가장 높다. [S1][S2]")
     market_rows = [
@@ -638,16 +668,27 @@ def build():
     add_table_source(doc, "자료: 국가데이터처·교육부, 2025년 초중고사교육비조사 결과(2026.3.12 공표) [S1][S2]. 금액 반올림.")
     add_callout(doc, "시장 해석", "Matths의 29,000원은 기존 학원·과외를 전면 대체하기보다 월 사교육 예산의 약 3.7%로 추가 채택 가능한 보조 학습 서비스 가격대다. 따라서 초기 전략은 ‘대체재’보다 ‘개념 이해와 학습 지속성을 보완하는 디지털 학습재’가 적합하다.")
 
-    doc.add_paragraph(style="Heading 2").add_run("2.2 핵심 고객 세그먼트")
+    hard_new_page(doc)
+    doc.add_paragraph(style="Heading 2").add_run("2.2 비대칭 고객 구조")
+    add_para(doc, "Matths의 시장 비대칭성은 서비스 이용과 비용 부담의 주체가 일치하지 않을 수 있다는 점에 있다. 학생은 학습경험과 성취를 직접 소비하지만, 학부모·보호자 또는 제3자가 가격을 비교하고 결제하며 이용 지속 여부에 영향을 미친다. 따라서 학생만을 최종 고객으로 보거나 결제자만을 구매 고객으로 보는 단일 고객 접근은 적절하지 않다.")
     customer_rows = [
-        ("핵심", "고1 공통수학 학습자", "공식을 외웠으나 변형 문제 적용이 어려운 학생", "시각화 개념 → 문제 적용 → 오답 복귀"),
-        ("확장", "고2·고3 학습자", "내신·모의고사 개념 결손을 빠르게 보완하려는 학생", "단원별 진단·주간 평가·오답 노트"),
-        ("확장", "N수생", "학교 소속 없이 반복 평가와 실력 추적이 필요한 학습자", "독립 랭킹·모의고사·기록 기반 재학습"),
-        ("구매 영향자", "학부모", "학습 진행과 가격 대비 효율을 확인하려는 보호자", "투명한 이용기간·성과 기록·환급 조건"),
+        ("실제 이용자", "학생·N수생", "이해도·성취·동기·편의", "시각화 학습, 오답 복귀, 진도, 평가, Arena"),
+        ("구매·결제자", "학부모·보호자", "가격·신뢰·성과·안전", "성과 요약, 이용기간·결제·환급조건의 투명성"),
+        ("제3자 구매자", "친족·후원자·장학주체·교육기관", "학습권 제공·대상 확인", "대상 학생 지정, 사용·성과 확인, 증빙 가능한 결제"),
+        ("영향자", "교사·상담자·친구", "추천·학습방향·사회적 신뢰", "교육과정 정보, 공유 가능한 성과 요약, 검증된 운영"),
     ]
-    add_table(doc, ["구분", "대상", "핵심 필요", "제공 가치"], customer_rows, [1100, 2000, 3100, 3160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT], font_size=8.8)
+    add_table(doc, ["역할", "대상", "핵심 판단기준", "제공 가치"], customer_rows, [1500, 2200, 2300, 3360], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT], font_size=8.7)
 
-    doc.add_paragraph(style="Heading 2").add_run("2.3 경쟁 구도")
+    doc.add_paragraph(style="Heading 2").add_run("2.3 다중 고객 접근전략")
+    strategy_rows = [
+        ("학생 획득", "시각화 학습·무료 체험·랭킹 경험", "가입·체험·활성학습·완료율"),
+        ("학부모 전환", "가격 대비 가치·성과 리포트·안전한 결제", "결제전환·갱신·환불·문의"),
+        ("제3자 구매", "학습권 선물·후원·대상 학생 지정", "구매자-학생 연결·사용개시·재구매"),
+        ("유지·확장", "학생 이용성과와 구매자 만족을 분리 관리", "학생 리텐션·구매자 리텐션·추천"),
+    ]
+    add_table(doc, ["목적", "핵심 수단", "관리지표"], strategy_rows, [1900, 4400, 3060], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT], font_size=8.9)
+
+    doc.add_paragraph(style="Heading 2").add_run("2.4 경쟁 구도")
     add_bullets(doc, [
         "학원·과외: 높은 상호작용과 관리 강점이 있으나 비용과 장소 제약이 큼.",
         "인터넷 강의: 범위와 강사 선택이 넓으나 수동 시청과 오답 구간 복귀의 한계가 있음.",
@@ -656,8 +697,18 @@ def build():
     ])
 
     new_page(doc)
-    add_section_heading(doc, "03", "서비스 구성 및 차별성", "학습 콘텐츠와 경쟁 시스템을 하나의 서비스 흐름으로 연결")
-    doc.add_paragraph(style="Heading 2").add_run("3.1 핵심 학습 흐름")
+    add_section_heading(doc, "03", "서비스 구성 및 차별성", "2022 개정 고등학교 수학 전 과목과 경쟁 시스템을 하나의 완성형 서비스로 연결")
+    doc.add_paragraph(style="Heading 2").add_run("3.1 교육과정 전체 범위")
+    add_para(doc, "Matths는 공통수학 일부가 아니라 2026년부터 순차 적용되는 개편 수능 체제에 대응하여 2022 개정 고등학교 수학 교육과정의 13개 과목 전체를 서비스 범위로 한다. 과목별 개념 시각화·문제·평가·오답 복습이 동일한 학습 체계 안에서 제공된다. [S12][I1]")
+    curriculum_rows = [
+        ("공통과목", "2", "공통수학1, 공통수학2"),
+        ("일반선택", "3", "대수, 미적분Ⅰ, 확률과 통계"),
+        ("진로선택", "5", "기하, 미적분Ⅱ, 경제 수학, 인공지능 수학, 직무 수학"),
+        ("융합선택", "3", "실용 통계, 수학과 문화, 수학과제 탐구"),
+    ]
+    add_table(doc, ["교육과정 구분", "과목 수", "제공 과목"], curriculum_rows, [1900, 1300, 6160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.0)
+
+    doc.add_paragraph(style="Heading 2").add_run("3.2 핵심 학습 흐름")
     flow_rows = [
         ("1", "개념 시각화", "공식이 만들어지는 과정을 도형·그래프·식의 변화로 제시"),
         ("2", "문제 적용", "학습한 개념을 교육과정·모의고사 유형 문제에 적용"),
@@ -669,7 +720,7 @@ def build():
     add_table(doc, ["단계", "기능", "이용자 가치"], flow_rows, [850, 2200, 6310], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.1)
     add_table_source(doc, "내부 서비스 소개 및 구현 문서 기준 [I1][I2].")
 
-    doc.add_paragraph(style="Heading 2").add_run("3.2 제품 차별성")
+    doc.add_paragraph(style="Heading 2").add_run("3.3 제품 차별성")
     diff_rows = [
         ("시각 설명", "한 화면에 하나의 핵심 변화를 배치해 공식·도형·그래프를 연결"),
         ("오답 복귀", "전체 강의 반복이 아니라 사용자가 막힌 장면부터 재학습"),
@@ -680,31 +731,41 @@ def build():
     ]
     add_table(doc, ["차별 요소", "구현 방향"], diff_rows, [2200, 7160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.2)
 
-    doc.add_paragraph(style="Heading 2").add_run("3.3 현재 개발 상태")
-    add_para(doc, "현재 저장소에는 Node.js·Express·EJS·MongoDB 기반 학습, 평가, 회원, 커뮤니티, 랭킹, GOAT Arena 정책·원장·검증 로직이 구현되어 있다. 다만 외부 PG 실결제 연동, 상용 인프라 운영, 세무 업종 확정, 유료 사용자 데이터 확보는 출시 전 과제로 남아 있다. [I2]")
+    doc.add_paragraph(style="Heading 2").add_run("3.4 서비스 구축 상태")
+    add_para(doc, "본 문서는 제품 개발이 완료되고 상용 운영이 가능한 상태를 전제로 작성한다. 13개 과목의 콘텐츠·문제·평가, 회원·진도·오답·성과관리, Sub/Main Division, 결제·환불·페이백 원장, 관리자·보안·개인정보·CS 및 상용 인프라가 모두 구축·검증된 것으로 본다. 다만 이후 재무수치는 제품 완성도와 별개로 실제 매출 실적을 반영하지 않은 예측치다. [I1][I2]")
     status_rows = [
-        ("제품 구조", "MVP 구현", "시각화 학습·평가·랭킹·관리 기능의 코드 기반 보유"),
-        ("Arena 정책", "정책·검증 구현", "Sub/Main 규칙, 학습일수 원장, 서버 판정, 이상 징후"),
-        ("수익 검증", "가정 검증", "1,000명 코호트 기반 시뮬레이션, 실제 전환 데이터 없음"),
-        ("결제", "연동 전", "결제 승인 내부 경계는 있으나 PG 계약·실연동 필요"),
-        ("출시 준비", "진행 필요", "사업자등록, VAT·업종 검토, 약관·보안·CS 운영 확정"),
+        ("교육과정·콘텐츠", "완료", "13개 과목의 개념·문제·평가·오답 학습 제공"),
+        ("학습·평가", "완료", "시각화·진도·성과 리포트·주간 평가 운영"),
+        ("결제·정산", "완료", "PG, 환불, 페이백 심사·지급·원장 관리"),
+        ("Arena·랭킹", "완료", "Sub/Main 규칙, 서버 판정, 감사기록, 이상 징후 통제"),
+        ("운영·관리", "완료", "관리자, 모니터링, 보안·개인정보, CS, 백업 체계"),
+        ("매출·수익 데이터", "예측", "완성 제품 기준 예측이며 실제 상용 실적은 미반영"),
     ]
     add_table(doc, ["영역", "상태", "판단"], status_rows, [1900, 1600, 5860], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.0)
 
     new_page(doc)
-    add_section_heading(doc, "04", "수익모델과 비대칭적 수익 구조", "조건부 리워드의 기대비용은 낮고, 반복 결제에 따른 공헌이익은 높은 구조")
-    doc.add_paragraph(style="Heading 2").add_run("4.1 기본 수익모델")
-    add_para(doc, "이용자는 29일 학습 패키지를 29,000원에 구매한다. Sub Division에서 사전 고지된 연속 학습·경기·점수·무결성 조건을 충족하면 결제대금의 일부 또는 전부를 페이백 받을 수 있다. Main Division은 페이백을 다시 지급하지 않고, 추가 학습일수와 상위 랭킹 경쟁을 제공해 체류와 재구독 동기를 강화한다. [I3][I4]")
+    add_section_heading(doc, "04", "비대칭 시장 구조와 수익모델", "학습권의 구매자와 실제 이용자를 분리하고 양측의 가치를 함께 관리하는 구조")
+    doc.add_paragraph(style="Heading 2").add_run("4.1 비대칭 시장 구조")
+    add_para(doc, "Matths에서는 학부모·보호자·친족·후원자·교육기관 등 구매자가 학습권을 결제하고, 지정된 학생이 서비스를 실제 이용할 수 있다. 따라서 계약·결제·환불 안내는 구매자에게, 학습·평가·랭킹 경험은 학생에게 제공하되, 개인정보와 동의 범위 안에서 구매자에게 이용·성과 요약을 제공하는 이중 가치체계를 적용한다.")
+    asym_rows = [
+        ("구매자", "가격·안전·성과 확인·결제 통제", "투명한 가격·환급조건, 성과 요약, 갱신·환불 관리"),
+        ("학생", "이해·성취·동기·사용 편의", "전 과목 시각화 학습, 오답 복귀, 평가, Arena"),
+        ("플랫폼", "권리·데이터·책임의 분리", "구매자-학생 연결, 학습권 배정, 동의·접근권한 관리"),
+    ]
+    add_table(doc, ["주체", "핵심 가치", "플랫폼 대응"], asym_rows, [1800, 3100, 4460], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.0)
+
+    doc.add_paragraph(style="Heading 2").add_run("4.2 수익모델 및 결제 흐름")
+    add_para(doc, "구매자는 지정 학생에게 적용되는 29일 학습 패키지를 29,000원에 결제한다. 학생이 Sub Division에서 사전 고지된 연속 학습·경기·점수·무결성 조건을 충족하면 결제대금의 일부 또는 전부가 결제·환급 정책에 따라 처리된다. Main Division은 추가 페이백 없이 추가 학습일수와 상위 랭킹 경쟁을 제공해 학생 체류와 구매자의 재구매 동기를 강화한다. [I3][I4]")
     bm_rows = [
-        ("유입", "저가 유료 패키지", "참여학생 월평균 사교육비의 약 3.7%"),
-        ("이용", "29일 학습·평가", "학습 콘텐츠와 주간 공식 평가 제공"),
+        ("구매", "학생 지정형 학습권", "학부모·보호자·제3자가 결제"),
+        ("배정·이용", "29일 학습·평가", "지정 학생에게 학습권을 배정하고 전 과목 서비스 제공"),
         ("성과", "Sub 페이백", "조건 충족자에 한해 50%·80%·100% 환급"),
         ("유지", "Main 경쟁", "페이백 종료 후 추가 학습일수·랭킹 경쟁"),
         ("재구매", "만료 후 재구독", "72시간 내 복귀 혜택과 이후 재배치"),
     ]
     add_table(doc, ["단계", "수익·운영 장치", "사업 효과"], bm_rows, [1200, 2700, 5460], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.1)
 
-    doc.add_paragraph(style="Heading 2").add_run("4.2 비대칭 구조의 경제적 의미")
+    doc.add_paragraph(style="Heading 2").add_run("4.3 단위경제성과 조건부 페이백")
     add_para(doc, "현재 내부 시뮬레이션에서 페이백 수령자는 결제자의 약 9.81%, 전체 매출 대비 지급액은 약 4.95%로 추정된다. 모든 결제자는 교육 서비스를 제공받지만 현금 환급은 별도의 높은 성취 조건을 충족한 일부에게만 발생한다. 이에 따라 사용자에게는 ‘학습 서비스 + 성취형 환급 기회’가 제공되고, 운영자에게는 환급 재원을 부담한 뒤에도 높은 평균 공헌이익이 남는다. [I4]")
     unit_rows = [
         ("결제 1건", "29,000원", "고객 결제총액"),
@@ -717,9 +778,9 @@ def build():
     add_table(doc, ["항목", "1건당 금액", "해석"], unit_rows, [2600, 2000, 4760], [WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.2)
     add_table_source(doc, "내부 손익 시뮬레이션의 30일 결제 1,000건 평균값을 1건 기준으로 환산 [I4].")
 
-    add_callout(doc, "운영 원칙", "비대칭 수익 구조는 환급 난도를 은폐하거나 이용자 손실을 전제로 하는 구조가 아니라, 모든 결제자에게 동일한 교육 서비스를 제공한 뒤 일부 성취자에게 운영자 재원으로 환급하는 구조로 설명해야 한다. 페이백은 확정 수익이 아니며, 수령 확률·조건·검증 절차를 결제 전에 명확히 고지한다.", fill="FFF7E2", border=GOLD)
+    add_callout(doc, "운영 원칙", "페이백은 비대칭 시장 구조의 정의가 아니라 학습성과 보상 장치다. 구매자에게 수령 확률·조건·검증·지급 절차를 결제 전에 명확히 고지하고, 학생에게는 학습조건과 성취기준을 이해 가능한 방식으로 안내한다. 환급 난도를 은폐하거나 이용자 손실을 전제로 수익을 설명하지 않는다.", fill=CALLOUT, border=INK)
 
-    doc.add_paragraph(style="Heading 2").add_run("4.3 손익에 가장 민감한 변수")
+    doc.add_paragraph(style="Heading 2").add_run("4.4 손익에 가장 민감한 변수")
     add_bullets(doc, [
         "Sub 만료자와 Main 강등자의 24시간·72시간 내 재구독률",
         "실제 페이백 수령률 및 50%·80%·100% 구간별 지급 분포",
@@ -733,23 +794,20 @@ def build():
     add_section_heading(doc, "05", "Main Division 운영 규칙(요약)", "사용자용 상세 룰이 아닌 공동사업자·행정 제출용 핵심 운영 원칙")
     add_callout(doc, "제도 목적", "Main Division은 Sub Division에서 페이백 및 진입 자격을 달성한 이용자가 추가 학습일수와 상위 Arena 지위를 두고 경쟁하는 상위 단계다. Main에서는 새로운 페이백을 지급하지 않는다. [I3]")
 
+    doc.add_paragraph(style="Heading 2").add_run("5.1 핵심 규칙")
     main_rows = [
-        ("진입", "Sub 페이백·Main 진입 자격 달성 후 이동"),
-        ("시작 학습일수", "Sub 최종 페이백 점수 - 29일 + 진입 보너스 2일"),
-        ("학습일수 관리", "사용 가능·초대 예약·경기 잠금으로 분리하고, 매일 1일 차감"),
-        ("상대 선정", "이용자는 목표 티어를 선택하고 서버가 적격 후보를 무작위 배정"),
-        ("배팅 범위", "티어 차이 1·2·3단계에 최소 1·2·3일, 4단계 이상 불가"),
-        ("잔액 보호", "양측 모두 경기 후 최소 1일을 남겨야 하며 운영자가 부족분을 임의 발행하지 않음"),
-        ("Arena 정산", "도전자가 이기면 양측 Arena 상태를 교환하고, 방어자가 이기면 유지"),
-        ("Main 페이백", "없음. 추가 학습일수와 랭킹 경쟁만 운영"),
-        ("만료", "모든 학습일수와 미정산 경기가 정리되면 Sub로 강등되고 Arena 이용 잠금"),
-        ("재구독", "72시간 내 결제 시 시험 없이 Sub 복귀, 이후에는 랭크 복귀전 진행"),
-        ("주간 운영", "일요일 14:30 신규 경기 차단, 15:00 동결, 월요일 00:00 일괄 공개"),
+        ("진입·초기값", "Sub 페이백·진입 자격 달성 후 이동하며, 시작 학습일수는 확정 산식으로 부여"),
+        ("학습일수", "사용 가능·초대 예약·경기 잠금으로 구분하고 매일 1일 차감"),
+        ("매칭", "이용자는 목표 티어만 선택하며 상대는 서버가 적격 후보 중 무작위 배정"),
+        ("경기·정산", "티어 차이에 따른 허용 범위와 최소 잔액을 적용하고 서버 판정으로 일괄 정산"),
+        ("페이백", "Main에서는 추가 페이백을 지급하지 않고 학습일수와 랭킹 경쟁만 제공"),
+        ("만료·재구독", "학습일수 소진 시 Sub로 이동하며, 정해진 기한 내 재결제에 복귀 기준 적용"),
+        ("주간 동결", "마감 이후 신규 경기를 차단하고 결과를 동결한 뒤 정해진 시각에 공개"),
     ]
     add_table(doc, ["구분", "공식 요약"], main_rows, [2200, 7160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.1)
     add_table_source(doc, "Main Division Ranking System v1.1(2026.8.2) 요약 [I3].")
 
-    doc.add_paragraph(style="Heading 2").add_run("사업적 역할")
+    doc.add_paragraph(style="Heading 2").add_run("5.2 사업적 역할")
     add_bullets(doc, [
         "Sub의 페이백 달성 이후에도 상위 성취 목표를 제공해 환급 직후 이탈을 줄인다.",
         "학습일수가 소진되면 Sub 강등과 재구독 경로가 열려 반복 결제 주기를 만든다.",
@@ -757,7 +815,7 @@ def build():
         "정책 버전, 원장, 서버 시간, 문제·답안·증거 기록으로 정산 결과를 재현할 수 있게 한다.",
     ])
 
-    doc.add_paragraph(style="Heading 2").add_run("상용화 전 통제사항")
+    doc.add_paragraph(style="Heading 2").add_run("5.3 상용 운영 통제사항")
     risk_rows = [
         ("공정성", "문제 난이도·채점·상대 선정의 사후 조작 금지", "정책 버전 고정·서버 권위 판정"),
         ("과몰입", "학습일수 경쟁이 교육 목적을 압도할 위험", "일일 횟수 제한·보호자 안내·휴식 정책"),
@@ -782,20 +840,18 @@ def build():
 
     doc.add_paragraph(style="Heading 2").add_run("6.3 동업계약서에 별도 확정할 항목")
     governance_rows = [
-        ("출자", "현금·현물·기존 개발물·향후 노동 기여의 평가 방식"),
-        ("지분·손익", "지분비율, 손익분배비율, 추가 출자, 적자 부담"),
+        ("출자·지분·손익", "현금·현물·기존 개발물·노동 기여의 평가, 지분·손익분배·적자 부담"),
         ("의사결정", "일상 집행 한도, 중요사항 전원동의, 교착상태 해결"),
         ("지식재산", "기존 코드·콘텐츠 귀속, 공동사업 중 산출물, 탈퇴 후 사용권"),
         ("보수·인출", "사업자 인출금, 비용 정산, 이익배당 시점, 세금 유보금"),
         ("계정·보안", "도메인·서버·DB·PG·은행·소스 저장소의 공동 통제"),
-        ("탈퇴·사망·분쟁", "지분 평가, 우선매수권, 고객·데이터 인계, 경업·비밀유지"),
-        ("청산", "부채·환불·페이백 충당금 우선 변제 후 잔여재산 배분"),
+        ("탈퇴·분쟁·청산", "지분 평가·우선매수권·고객/데이터 인계 및 부채·환불·페이백 우선 변제"),
     ]
     add_table(doc, ["항목", "확정 내용"], governance_rows, [2200, 7160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.1)
-    add_callout(doc, "청년 감면 유의", "공동사업에서 청년창업 대표자는 손익분배비율이 가장 큰 사업자다. 가장 큰 비율이 같은 사람이 둘 이상이면 그 모두가 청년 요건을 충족해야 한다. 따라서 50:50 구조에서 한 명만 청년이면 청년창업 감면이 배제될 수 있다. 비율은 절세만을 위해 형식적으로 정하지 않고 실제 출자·역할·분배와 일치시킨다. [S6][S8]", fill="FFF7E2", border=GOLD)
+    add_callout(doc, "청년 감면 유의", "공동사업에서 청년창업 대표자는 손익분배비율이 가장 큰 사업자다. 가장 큰 비율이 같은 사람이 둘 이상이면 그 모두가 청년 요건을 충족해야 한다. 따라서 50:50 구조에서 한 명만 청년이면 청년창업 감면이 배제될 수 있다. 비율은 절세만을 위해 형식적으로 정하지 않고 실제 출자·역할·분배와 일치시킨다. [S6][S8]", fill=CALLOUT, border=INK)
 
     new_page(doc)
-    add_section_heading(doc, "07", "예상 매출·지출·이익", "최초 유료 결제자 1,000명, 가격 29,000원, 실제 실적 전의 추정치")
+    add_section_heading(doc, "07", "예상 매출·지출·이익", "완성된 상용 서비스의 12개월 예측 — 최초 결제자 1,000명, 가격 29,000원")
     doc.add_paragraph(style="Heading 2").add_run("7.1 산출 가정")
     assumption_rows = [
         ("분석대상", "최초 유료 결제자 1,000명 코호트"),
@@ -851,7 +907,7 @@ def build():
 
     new_page(doc)
     add_section_heading(doc, "08", "세무 및 절세 가능성", "2026년 8월 현재 법령 기준의 조건부 검토 — 확정 세무의견 아님")
-    add_callout(doc, "가장 중요한 결론", "세액감면은 연매출을 바꾸지 않는다. 청년창업 감면은 소득세를 줄여 세후 유보금을 늘리고, 부가가치세 과·면세는 29,000원 소비자가격 중 얼마를 회계상 매출로 인식하는지를 바꾼다.", fill="EAF3FA", border=BLUE)
+    add_callout(doc, "가장 중요한 결론", "세액감면은 연매출을 바꾸지 않는다. 청년창업 감면은 소득세를 줄여 세후 유보금을 늘리고, 부가가치세 과·면세는 29,000원 소비자가격 중 얼마를 회계상 매출로 인식하는지를 바꾼다.", fill=CALLOUT, border=INK)
 
     doc.add_paragraph(style="Heading 2").add_run("8.1 청년창업중소기업 세액감면")
     add_para(doc, "2026년 1월 1일 이후 창업하는 청년창업중소기업은 최초 소득 발생연도부터 5년간 사업장 위치에 따라 소득세 감면을 받을 수 있다. 청년은 개인사업자 창업 당시 15세 이상 34세 이하이며, 병역 이행기간은 최대 6년까지 연령 계산에서 제외된다. 수도권과밀억제권역 50%, 그 밖의 수도권 75%, 수도권 밖 100%가 기본 감면율이다. [S5][S6]")
@@ -865,7 +921,7 @@ def build():
 
     doc.add_paragraph(style="Heading 3").add_run("업종 적격성")
     add_para(doc, "일반 고등수학 교육서비스는 조세특례제한법 제6조 제3항의 열거 업종에 포함되지 않는다. 교육 분야 중 명시적으로 포함되는 것은 직업기술 분야 학원 또는 직업능력개발훈련시설 등으로 제한된다. 반면 정보통신업은 열거 업종이므로 Matths의 실제 주된 사업이 소프트웨어·정보서비스인지, 교육용역인지에 따라 결론이 달라질 수 있다. 업종코드만 정보통신업으로 선택하는 것은 충분하지 않으며 계약, 화면, 매출 발생 원인, 콘텐츠 제공 방식 등 사업의 실질이 일치해야 한다. [S6]")
-    add_callout(doc, "보수적 판단", "현재 사업 설명이 ‘고등학생에게 수학을 가르치는 유료 서비스’에 가깝다면 청년창업 감면 0%를 기본값으로 두고, 사업자등록 전 국세청의 소득세 공제·감면 컨설팅 또는 세무대리인 서면검토를 받아 정보통신업 해당 가능성을 확인하는 것이 안전하다. [S7]", fill="FFF7E2", border=GOLD)
+    add_callout(doc, "보수적 판단", "현재 사업 설명이 ‘고등학생에게 수학을 가르치는 유료 서비스’에 가깝다면 청년창업 감면 0%를 기본값으로 두고, 사업자등록 전 국세청의 소득세 공제·감면 컨설팅 또는 세무대리인 서면검토를 받아 정보통신업 해당 가능성을 확인하는 것이 안전하다. [S7]", fill=CALLOUT, border=INK)
 
     doc.add_paragraph(style="Heading 2").add_run("8.2 부가가치세 과·면세")
     add_para(doc, "교육 목적만으로 부가가치세가 면제되지는 않는다. 면세 교육용역은 원칙적으로 주무관청의 허가·인가를 받거나 등록·신고된 학교·학원·강습소·교습소 등이 학생에게 지식·기술을 가르치는 경우다. 온라인 플랫폼이 이러한 지위를 갖추지 못하면 과세사업으로 판단될 가능성을 먼저 검토해야 한다. [S9]")
@@ -889,47 +945,48 @@ def build():
               [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.RIGHT], font_size=8.4)
     add_table_source(doc, "단순 예시이며 건강보험료·연금·타소득·세액공제·최저한세·농어촌특별세·지방세 감면·매입 VAT를 반영하지 않음. 실제 신고액이 아님.")
 
+    hard_new_page(doc)
     doc.add_paragraph(style="Heading 2").add_run("8.4 합법적 절세 실행항목")
+    add_para(doc, "절세는 매출을 인위적으로 변경하는 수단이 아니라, 적격 업종·증빙·공동사업 정합성·정확한 신고를 통해 세후 유보금을 합법적으로 확보하는 관리절차다.")
     add_numbered(doc, [
         "사업자등록 전 실제 주업종, 사업장 소재지, 창업 해당 여부, 공동사업 청년 대표 요건을 서면 검토한다.",
         "사업용 계좌·카드·PG 정산계정을 분리하고 서버·콘텐츠·광고·외주·법률·회계비용의 적격증빙을 수취한다.",
         "페이백 예정액과 환불·차지백을 월별 충당금으로 관리하고 실제 지급 증빙을 보관한다.",
         "공동사업자 손익분배비율을 동업계약·사업자등록·장부·실제 분배에 동일하게 반영한다.",
         "노란우산공제, 통합투자세액공제, 고용 관련 공제는 실제 가입·투자·채용 시 별도 검토한다.",
-        "유료화 전 부가가치세 과·면세와 소비자가격 표시 방식을 확정하고, 면세를 전제로 가격을 정하지 않는다.",
+        "정식 결제 운영 시 부가가치세 과·면세와 소비자가격 표시 방식을 확정하고, 면세를 전제로 가격을 정하지 않는다.",
     ])
 
     new_page(doc)
-    add_section_heading(doc, "09", "실행계획 및 성과관리", "등록·유료 베타·데이터 보정·확장의 단계별 계획")
+    add_section_heading(doc, "09", "운영·성장계획 및 성과관리", "개발 완료 이후 시장 진입과 학생·구매자별 성과관리 계획")
     doc.add_paragraph(style="Heading 2").add_run("9.1 단계별 실행")
     roadmap_rows = [
-        ("1단계", "등록·통제 설계", "0~1개월", "동업계약, 업종·VAT 검토, 사업자등록, 계좌·장부, PG·약관·개인정보"),
-        ("2단계", "폐쇄형 베타", "1~3개월", "고1 공통수학 콘텐츠, 경기 공정성, 운영자 검토, CS·장애 대응"),
-        ("3단계", "유료 파일럿", "3~6개월", "100~500명 대상 가격·페이백·재구독·환급 프로세스 실측"),
-        ("4단계", "기준 코호트", "6~12개월", "최초 유료 1,000명 확보, 손익 모델 재보정, Main 이용 데이터 축적"),
-        ("5단계", "과목·학년 확장", "12개월 이후", "고2·고3·N수생 범위, 학교·학년별 리텐션 분석, B2B 제휴 검토"),
+        ("1단계", "사업 운영 개시", "0~1개월", "동업계약, 업종·VAT 검토, 사업자등록, 계좌·장부, PG·약관·개인정보 확정"),
+        ("2단계", "초기 상용화", "1~3개월", "학생 체험·가입 유입, 학부모 결제전환, 제3자 학습권 구매 절차 운영"),
+        ("3단계", "유료고객 안정화", "3~6개월", "100~500명 기준 가격·페이백·재구매·환급·CS 지표 검증"),
+        ("4단계", "기준 코호트 확보", "6~12개월", "최초 결제자 1,000명, 구매자·학생 코호트 분리분석, 손익 재산출"),
+        ("5단계", "채널 확장", "12개월 이후", "학교·장학·후원 등 제3자 구매채널과 B2B·B2G 제휴 검토"),
     ]
     add_table(doc, ["단계", "목표", "기간", "완료 기준"], roadmap_rows, [1100, 1800, 1300, 5160], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=8.9)
 
     doc.add_paragraph(style="Heading 2").add_run("9.2 핵심 KPI")
     kpi_rows = [
-        ("획득", "방문→가입, 가입→배치, 배치→결제", "주·월"),
-        ("학습", "활성일, 개념 완료율, 오답 재도전률, 30일 연속 학습률", "일·주"),
-        ("평가", "주간 공식 모의고사 응시율, 점수 변화, 제출·증거 완결률", "주"),
-        ("수익", "결제건수, ARPPU, 재구독률, CAC, 공헌이익", "월"),
-        ("페이백", "수령률, 지급액/매출, 구간 분포, 심사 소요시간, 이의신청률", "월"),
-        ("Main", "진입률, 체류일, 배팅일수, 강등률, 72시간 재구독률", "월"),
-        ("품질·위험", "오류·장애, 환불·차지백, 부정행위 보류, 개인정보 사고", "상시"),
+        ("학생 획득", "방문→가입, 체험→학습개시, 활성 학생, 추천 유입", "주·월"),
+        ("구매자·학습권", "결제전환·구매자 유형·갱신, 학생 지정·사용개시·미사용권", "주·월"),
+        ("학습·평가", "활성일, 완료율, 오답 재도전, 주간 평가·점수 변화", "일·주"),
+        ("수익·페이백", "결제·재구매·CAC·공헌이익, 수령률·지급액/매출·이의신청", "월"),
+        ("Main·품질", "진입·체류·강등·72시간 재구독, 오류·환불·부정행위·개인정보", "월·상시"),
     ]
-    add_table(doc, ["영역", "핵심 지표", "주기"], kpi_rows, [1600, 6300, 1460], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.CENTER], font_size=9.0)
+    add_table(doc, ["영역", "핵심 지표", "주기"], kpi_rows, [1600, 6300, 1460], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.CENTER], font_size=8.8)
 
     doc.add_paragraph(style="Heading 2").add_run("9.3 모델 재산출 기준")
-    add_para(doc, "Sub 만료, Main 강등, 72시간 내·이후 재구독, 페이백 심사, Main 경기 결과가 각 100건 이상 축적되면 결제주기·승률·체류기간·페이백률을 다시 추정한다. 가정과 실제 값의 차이가 20%를 넘거나 지급액/매출이 사전 경보선을 넘으면 신규 정책 버전에서 가격·조건·원가를 조정한다. 이미 시작된 주기에는 소급 적용하지 않는다.")
+    add_para(doc, "구매자 유형별 결제·재구매, 학생별 학습개시·유지, 구매자-학생 연결, Sub 만료, Main 강등, 페이백 심사 및 경기 결과가 각 100건 이상 축적되면 전환율·결제주기·학생 체류기간·페이백률을 다시 추정한다. 가정과 실제 값의 차이가 20%를 넘거나 지급액/매출이 사전 경보선을 넘으면 신규 정책 버전에서 가격·조건·원가를 조정한다. 이미 시작된 주기에는 소급 적용하지 않는다.")
 
     new_page(doc)
     add_section_heading(doc, "10", "주요 위험 및 대응", "사업·재무·규제·운영 위험을 사전에 분리 관리")
     risk_full_rows = [
-        ("수요", "시각화 콘텐츠의 유료 전환이 낮음", "중", "고1 단원별 무료 체험, 전환 퍼널 측정, 가격 A/B"),
+        ("수요", "시각화 콘텐츠의 유료 전환이 낮음", "중", "과목별 무료 체험, 학생 유입·구매자 전환 퍼널 분리 측정"),
+        ("비대칭 고객", "학생은 원하지만 구매자가 결제하지 않거나, 구매 후 학생이 미사용", "상", "학생·구매자별 안내, 학습권 지정, 미사용 알림, 갱신 근거 제공"),
         ("리텐션", "랭킹·페이백이 학습보다 경쟁만 자극", "중", "학습 완료를 필수 조건으로 연결, 보호자·청소년 정책"),
         ("페이백", "실제 지급률이 5% 가정을 상회", "상", "월별 충당금, 경보선, 신규 정책 버전, 과장광고 금지"),
         ("VAT", "면세 오판으로 세금·가산세 발생", "상", "등록 전 서면검토, 과세 기준 가격 확보"),
@@ -944,36 +1001,27 @@ def build():
 
     doc.add_paragraph(style="Heading 2").add_run("승인 전 필수 체크")
     add_bullets(doc, [
-        "공동사업자 동업계약서 서명 및 손익분배비율·대표공동사업자 확정",
-        "세무 주업종·VAT 과면세·청년창업 감면 사전검토 완료",
-        "PG 계약과 소비자가격의 VAT 포함 여부 확정",
-        "페이백 충당금 계정, 지급 절차, 이의신청·환불 절차 확정",
-        "미성년자 개인정보·풀이 증거·결제정보의 수집·보관·파기 검토",
-        "서비스 약관·결제 전 핵심조건 요약·과장표현 금지 문구 검수",
-        "유료 베타 장애·보안·CS 담당자와 비상 연락체계 지정",
+        "공동사업 동업계약, 손익분배비율·대표공동사업자, 주업종·VAT·청년감면 검토를 확정한다.",
+        "PG·소비자가격·페이백 충당금·지급·이의신청·환불 절차를 동일한 정책으로 연결한다.",
+        "미성년자 개인정보·풀이 증거·결제정보의 수집·보관·파기와 약관·결제 전 요약을 검수한다.",
+        "상용 운영의 장애·보안·CS 담당자와 비상 연락체계를 지정한다.",
     ])
 
     new_page(doc)
     add_section_heading(doc, "11", "종합 결론 및 공동사업자 확인", "본 문서의 가정과 조건을 전제로 한 내부 사업 추진 판단")
     doc.add_paragraph(style="Heading 2").add_run("11.1 종합 결론")
-    add_para(doc, "Matths는 고등학생 사교육 참여자의 월평균 지출 79만 3천 원 대비 약 3.7%의 가격으로 진입 가능한 시각화 수학 학습 서비스다. 내부 기준 시나리오에서는 최초 유료 결제자 1,000명으로 연간 약 1,940건의 결제와 고객 결제총액 약 5,626만 원을 예상한다. 페이백·PG·결제건당 운영비·추가 연간 예산을 반영한 세전 사업이익은 VAT 판단 전 기준 약 2,832만 원이다.")
-    add_para(doc, "다만 사업성 판단의 선결조건은 ① 실제 유료 전환·재구독 데이터, ② 페이백 지급률, ③ Main 체류효과, ④ 부가가치세 과·면세, ⑤ 청년창업 세액감면 대상 업종 인정 여부다. 따라서 공동사업은 감면 0%와 VAT 과세를 기본 재무안으로 준비하고, 유료 파일럿 데이터가 축적될 때마다 가격·비용·정책을 신규 버전으로 조정하는 방식이 타당하다.")
-    add_callout(doc, "권고", "사업자등록은 추진할 수 있으나, 유료 결제 개시 전 ‘공동사업 동업계약 + 업종·VAT·청년감면 서면검토 + 페이백 충당금·분쟁절차 + PG 실연동 검증’의 네 가지 조건을 완료한다.")
+    add_para(doc, "Matths는 2022 개정 고등학교 수학 교육과정 13개 과목 전체를 제공하는 완성형 시각화 학습 플랫폼이며, 고등학생 사교육 참여자의 월평균 지출 79만 3천 원 대비 약 3.7%의 가격으로 진입할 수 있다. 내부 기준 시나리오에서는 최초 결제자 1,000명으로 연간 약 1,940건의 결제와 고객 결제총액 약 5,626만 원을 예상한다. 페이백·PG·결제건당 운영비·추가 연간 예산을 반영한 세전 사업이익은 VAT 판단 전 기준 약 2,832만 원이다.")
+    add_para(doc, "핵심 사업구조는 학부모·보호자·제3자가 학습권을 구매하고 학생이 실제 서비스를 이용하는 비대칭 시장에 있다. 따라서 학생의 학습효과·동기·편의와 구매자의 가격·신뢰·성과확인을 동시에 만족시켜야 한다. 사업성 판단의 주요 변수는 ① 구매자 유형별 결제·재구매, ② 학생의 실제 사용·유지, ③ 페이백 지급률과 Main 체류효과, ④ 부가가치세 과·면세, ⑤ 청년창업 세액감면 대상 업종 인정 여부다.")
+    add_callout(doc, "권고", "완성된 제품의 상용 운영을 전제로 사업자등록을 추진하되, ‘공동사업 동업계약 + 업종·VAT·청년감면 서면검토 + 페이백 충당금·분쟁절차 + 구매자·학생 권한 및 개인정보 기준’의 네 가지 행정·통제조건을 확정한다.")
 
     doc.add_paragraph(style="Heading 2").add_run("11.2 공동사업자 확인")
-    add_para(doc, "아래 공동사업자는 본 문서가 실제 유료 운영 실적이 아닌 내부 가정을 포함하고 있음을 확인하며, 사업자등록 신청서와 동업계약서에서 확정한 사항이 본 문서보다 우선함에 동의한다.")
+    add_para(doc, "아래 공동사업자는 본 문서가 제품 개발 완료와 상용 운영 가능 상태를 전제로 하되, 매출·비용·세무 수치에는 실제 유료 운영 실적이 아닌 예측 가정이 포함되어 있음을 확인한다. 사업자등록 신청서와 동업계약서에서 확정한 사항은 본 문서보다 우선한다.")
     sign_rows = [
         ("공동사업자 1", "성명: ____________________", "서명/인: ____________________", "일자: 20____. ____. ____."),
         ("공동사업자 2", "성명: ____________________", "서명/인: ____________________", "일자: 20____. ____. ____."),
         ("대표공동사업자", "성명: ____________________", "서명/인: ____________________", "일자: 20____. ____. ____."),
     ]
     add_table(doc, ["구분", "성명", "확인", "일자"], sign_rows, [1700, 2600, 2600, 2460], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.1)
-
-    doc.add_paragraph(style="Heading 2").add_run("11.3 문서 통제")
-    control_rows = [
-        ("v1.0", "2026.08.02", "최초 작성", "시장·수익·Main Division·공동사업·세무 시나리오 통합"),
-    ]
-    add_table(doc, ["버전", "기준일", "구분", "변경 내용"], control_rows, [1200, 1600, 1500, 5060], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.0)
 
     new_page(doc)
     add_section_heading(doc, "A", "근거자료 및 출처", "외부 공식자료와 내부 정책·시뮬레이션을 구분")
@@ -989,10 +1037,11 @@ def build():
     add_source(doc, "S9", "부가가치세법 시행령 제36조 면세 교육용역 범위", "국가법령정보센터", "2026.04.01 시행", "https://law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lspttninfSeq=112803", "주무관청 허가·인가·등록·신고 시설 등")
     add_source(doc, "S10", "소득세법 제55조 종합소득세율", "국가법령정보센터", "2026.07.01 시행", "https://law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1023583825", "과세표준 1,400만 원 이하 6%")
     add_source(doc, "S11", "소득세법 제50조 기본공제", "국가법령정보센터", "2026.07.01 시행", "https://www.law.go.kr/lsLinkCommonInfo.do?lsJoLnkSeq=1032954559", "본인 등 1명당 연 150만 원")
+    add_source(doc, "S12", "교육부 고시 제2022-33호 [별책 8] 수학과 교육과정", "교육부", "2022", "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&boardSeq=93458&lev=0", "2022 개정 고등학교 수학 교육과정의 과목 편성 근거")
 
     doc.add_paragraph(style="Heading 2").add_run("A.2 내부자료")
     internal_sources = [
-        ("I1", "views/intro.ejs 및 views/faq.ejs", "서비스 가치제안·학습 흐름·교육과정 범위"),
+        ("I1", "curriculum_folder/*.yaml 및 서비스 콘텐츠 카탈로그", "고등학교 수학 13개 과목 구성·학습 콘텐츠 범위"),
         ("I2", "docs/logic/01_MATTHS_CURRENT_SYSTEM.md", "현행 기술·학습·평가·운영 구조"),
         ("I3", "docs/logic/03_SUB_DIVISION_RANKING_SYSTEM_PAYBACK.md 및 04_MAIN_DIVISION_RANKING_SYSTEM.md", "Sub 페이백과 Main Division 운영 규칙"),
         ("I4", "docs/logic/09_GOAT_ARENA_PROFIT_LOSS_SIMULATION.md", "1,000명 코호트·결제·페이백·PG·재구독 손익 추정"),
@@ -1000,17 +1049,22 @@ def build():
     ]
     for code, path, note in internal_sources:
         p = doc.add_paragraph(style="Source List")
-        set_font(p.add_run(f"[{code}] {path}"), size=8.8, bold=True, color=TEXT)
-        set_font(p.add_run(f" — {note}"), size=8.8, color=MUTED)
+        set_font(p.add_run(f"[{code}] {path}"), size=8.1, bold=True, color=TEXT)
+        set_font(p.add_run(f" — {note}"), size=8.1, color=MUTED)
 
     doc.add_paragraph(style="Heading 2").add_run("A.3 산출 및 해석 유의사항")
     add_bullets(doc, [
-        "시장 통계는 2025년 조사 결과이며 2026년 3~5월 공표된 공식 자료를 사용했다.",
-        "재무 수치는 내부 정책 검증 모델이며 실제 매출, 사용자 행동, 세무 신고 결과가 아니다.",
-        "세무 법령은 2026년 8월 2일 현재 시행 기준으로 정리했으며 개별 사실관계에 따라 적용이 달라질 수 있다.",
-        "‘연매출’은 고객 결제총액과 회계상 공급가액을 구분했다. VAT 과세 시 29,000원에 포함된 VAT는 매출이 아니다.",
-        "법률·세무 확정 판단은 관할 세무서, 국세청 사전컨설팅, 세무대리인·변호사의 검토를 거친다.",
+        "제품 개발은 완료된 것으로 전제했으며, 시장 통계는 2025년 조사 결과를 사용하고 재무 수치는 실제 매출 실적이 아닌 내부 정책 검증 모델로 산출했다.",
+        "세무 법령은 2026년 8월 2일 시행 기준이며, ‘연매출’은 고객 결제총액과 회계상 공급가액을 구분했다. VAT 과세 시 소비자가격에 포함된 VAT는 매출이 아니다.",
+        "법률·세무 적용은 사실관계에 따라 달라지므로 관할 세무서, 국세청 사전컨설팅, 세무대리인·변호사의 검토로 확정한다.",
     ])
+
+    doc.add_paragraph(style="Heading 2").add_run("A.4 문서 통제")
+    control_rows = [
+        ("v1.0", "2026.08.02", "최초 작성", "시장·수익·Main Division·공동사업·세무 시나리오 통합"),
+        ("v1.1", "2026.08.02", "전면 개정", "13개 과목 전체·개발 완료 전제·비대칭 시장·맑은 고딕·페이지 편집 반영"),
+    ]
+    add_table(doc, ["버전", "기준일", "구분", "변경 내용"], control_rows, [1200, 1600, 1500, 5060], [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT], font_size=9.0)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     doc.save(OUT)

@@ -1,0 +1,170 @@
+{
+  "input": "/Users/sangyoonlee/Desktop/SangYoon Lee/SINGAPORE 2025-/Personal Projects/Matths/output/rulebooks/Matths_GOAT_Arena_Sub_Division_\uc0ac\uc6a9\uc790_\ub8f0\ubd81_v1.0.docx",
+  "fonts_by_char_count": {
+    "Malgun Gothic": 5146
+  },
+  "direct_run_formatting_runs": 230,
+  "direct_paragraph_formatting_paragraphs": 204,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 1,
+      "text": "MATTHS  \u00b7  GOAT ARENA",
+      "style": "Normal"
+    },
+    {
+      "para_index": 2,
+      "text": "Sub Division \uaddc\uce59",
+      "style": "Normal"
+    },
+    {
+      "para_index": 3,
+      "text": "SUB DIVISION\n\uc0ac\uc6a9\uc790 \ub8f0\ubd81",
+      "style": "Normal"
+    },
+    {
+      "para_index": 5,
+      "text": "\uc0ac\uc6a9\uc790\uc6a9 v1.0  |  Sub \ud65c\uc131 \uc815\ucc45 v2.9",
+      "style": "Normal"
+    },
+    {
+      "para_index": 7,
+      "text": "\uc774 \ub8f0\ubd81\uc5d0\uc11c \ud655\uc778\ud560 \ub0b4\uc6a9",
+      "style": "Normal"
+    },
+    {
+      "para_index": 18,
+      "text": "CHAPTER 01",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 27,
+      "text": "CHAPTER 02",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 40,
+      "text": "CHAPTER 03",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 56,
+      "text": "CHAPTER 04",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 68,
+      "text": "CHAPTER 05",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 78,
+      "text": "CHAPTER 06",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 88,
+      "text": "CHAPTER 07",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 105,
+      "text": "CHAPTER 08",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 127,
+      "text": "CHAPTER 09",
+      "style": "Kicker"
+    },
+    {
+      "para_index": 134,
+      "text": "\uc6a9\uc5b4",
+      "style": "Normal"
+    },
+    {
+      "para_index": 135,
+      "text": "\ub73b",
+      "style": "Normal"
+    },
+    {
+      "para_index": 148,
+      "text": "\ud56d\ubaa9",
+      "style": "Normal"
+    },
+    {
+      "para_index": 149,
+      "text": "\uc2dc\uc791 \uae30\uc900",
+      "style": "Normal"
+    },
+    {
+      "para_index": 158,
+      "text": "\uacb0\uc81c \uc2b9\uc778 \uc2dc\uac01",
+      "style": "Normal"
+    },
+    {
+      "para_index": 159,
+      "text": "\uccab \ud559\uc2b5\uc77c \ucc98\ub9ac",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 1,
+        "text": "MATTHS  \u00b7  GOAT ARENA",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "text": "Sub Division \uaddc\uce59",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "text": "SUB DIVISION\n\uc0ac\uc6a9\uc790 \ub8f0\ubd81",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "text": "\ud559\uc2b5\uad8c \u00b7 \uc77c\ubc18 \uc7c1\ud0c8\uc804 \u00b7 \ubcf5\uc218\uc804 \u00b7 \ud398\uc774\ubc31 \u00b7 Main \uc9c4\uc785",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "\uc0ac\uc6a9\uc790\uc6a9 v1.0  |  Sub \ud65c\uc131 \uc815\ucc45 v2.9",
+        "style": "Normal"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 1,
+        "run_text": "MATTHS  \u00b7  GOAT ARENA",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": "Sub Division \uaddc\uce59",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "SUB DIVISION\n\uc0ac\uc6a9\uc790 \ub8f0\ubd81",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "run_text": "\ud559\uc2b5\uad8c \u00b7 \uc77c\ubc18 \uc7c1\ud0c8\uc804 \u00b7 \ubcf5\uc218\uc804 \u00b7 \ud398\uc774\ubc31 \u00b7 Main \uc9c4\uc785",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "run_text": "\uc0ac\uc6a9\uc790\uc6a9 v1.0  |  Sub \ud65c\uc131 \uc815\ucc45 v2.9",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}
