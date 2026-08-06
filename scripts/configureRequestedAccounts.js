@@ -78,7 +78,7 @@ async function ensureLearningPackage({ admin, target, now }) {
     adminUserId: admin._id,
     userId: target._id,
     packageType: ADMIN_PACKAGE_TYPES.LEARNING_PACKAGE,
-    reason: "요청에 따른 29일 학습권 패키지 및 Main Division 운영 설정",
+    reason: "요청에 따른 29일 학습권 패키지 및 Ranked 운영 설정",
     now,
   });
 }
@@ -158,7 +158,6 @@ async function promoteToMainWithThirtyDays({ admin, target, now }) {
         },
       ];
       cycle.depletedAt = null;
-      cycle.dailyConsumptionPausedAt = null;
       cycle.baseExpiresAt = addDays(now, 30);
       cycle.expiresAt = addDays(now, 30);
       cycle.evaluationAt = addDays(now, 30);
@@ -189,7 +188,7 @@ async function promoteToMainWithThirtyDays({ admin, target, now }) {
             metadata: {
               setupVersion: SETUP_VERSION,
               division: "MAIN",
-              reason: "요청에 따른 Main Division 승급 및 잔여 학습일 30일 설정",
+              reason: "요청에 따른 Ranked 승급 및 잔여 학습일 30일 설정",
             },
           },
         },
@@ -208,7 +207,6 @@ async function promoteToMainWithThirtyDays({ admin, target, now }) {
             currentSeasonPlacementCompleted: true,
             expiredAt: null,
             renewalGraceDeadline: null,
-            dormancyReturnRequiredAt: null,
             defensePoolEligible: true,
             weeklyMockEligible: true,
             finalRankingActive: true,
@@ -226,7 +224,7 @@ async function promoteToMainWithThirtyDays({ admin, target, now }) {
             userId: target._id,
             title: "이용 플랜과 Division이 변경되었습니다",
             message:
-              "29일 학습권 패키지가 적용되었고 Main Division 잔여 학습일이 30일로 설정되었습니다.",
+              "29일 학습권 패키지가 적용되었고 Ranked 잔여 학습일이 30일로 설정되었습니다.",
             href: "/goat-arena/profile",
             dedupeKey: `${target._id}:${SETUP_VERSION}`,
             sourceType: "ADMIN_PACKAGE_MANAGEMENT",
@@ -249,7 +247,7 @@ async function promoteToMainWithThirtyDays({ admin, target, now }) {
             adminUserId: admin._id,
             targetUserId: target._id,
             action: SETUP_VERSION,
-            detail: "29일 학습권 패키지 · Main Division · 잔여 30일 적용",
+            detail: "29일 학습권 패키지 · Ranked · 잔여 30일 적용",
             metadata: {
               accessCycleId: cycle._id,
               standingId: standing._id,
